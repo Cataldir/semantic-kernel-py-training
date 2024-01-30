@@ -28,12 +28,6 @@ class SQLSettings(BaseConnection, metaclass=SettingsMeta):
     base_schema: str = field(
         default=os.environ.get("BASE_SCHEMA", "base_schema")
     )
-    user_schema: str = field(
-        default=os.environ.get("USER_SCHEMA", "user_schema")
-    )
-    value_proposition_schema: str = field(
-        default=os.environ.get("VPC_SCHEMA", "vpc_schema")
-    )
 
     async def connect(self) -> asyncpg.Connection:
         """
