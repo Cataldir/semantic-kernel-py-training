@@ -29,7 +29,7 @@ class BodyMessage:
     success: bool
     type: Optional[str]
     title: Optional[str]
-    detail: Optional[
+    data: Optional[
         Union[
             Dict[str, Union[str, List]], List[Dict[str, Union[str, List]]]
         ]
