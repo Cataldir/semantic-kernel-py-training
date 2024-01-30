@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Dict, Callable, Union, Coroutine, Any, Optional
+from typing import Dict, Callable, Coroutine, Any, Optional, List
 
+import tiktoken
 import semantic_kernel as sk
 from semantic_kernel.kernel import KernelFunctionBase
 
 
-ASYNC_CALLABLE = Union[Coroutine[Any, Any, str], Callable[..., str]]
+ASYNC_CALLABLE = Coroutine[Any, Callable[..., str], str]
 
 
 class Agent(ABC):
@@ -29,7 +30,8 @@ class Agent(ABC):
         self.tool_mapping: Dict[str, ASYNC_CALLABLE]
         if not chat_id:
             chat_id = uuid.uuid4()
-        self._id = chat_id
+        self._id: uuid.UUID = chat_id
+        self.response: Dict[str, Any] = {'chat_id': str(self._id)}
 
     async def __call__(self, chat_name: str, prompt: str, *args, **kwargs) -> Dict:
         """
@@ -46,8 +48,10 @@ class Agent(ABC):
         """
         self._config_service(chat_name, *args)
         semantic_function: KernelFunctionBase = await self.prompt(prompt, **kwargs)
-        response = semantic_function(prompt)
-        return {'chat_id': self._id, 'response': response}
+        chat_answer = semantic_function(prompt)
+        self.response['output_tokens'] = len(self._encode(chat_answer.variables.variables.get('input', 0)))
+        self.response.update(chat_answer.model_dump())
+        return self.response
 
     @abstractmethod
     def _config_service(self, chat_name: str, *args, **kwargs) -> None:
@@ -111,3 +115,16 @@ class Agent(ABC):
         Returns:
             SKFunctionBase: The created semantic function.
         """
+
+    def _encode(self, input: str) -> List[int]:
+        """
+        Encodes the input using the tiktoken encoder.
+
+        Args:
+            input (str): The input to encode.
+
+        Returns:
+            List[int]: The encoded input.
+        """
+        encoder = tiktoken.get_encoding("cl100k_base")
+        return encoder.encode(input)

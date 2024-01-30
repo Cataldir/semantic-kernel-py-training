@@ -7,6 +7,10 @@ from dotenv import load_dotenv
 
 from azure.storage.blob import BlobServiceClient, BlobClient
 
+
+load_dotenv()
+
+
 def load_data(generated_data: Dict):
     container_name = os.environ.get('BLOB_STORAGE_STORAGE_ACCOUNT', '')
     connect_str = os.environ.get('BLOB_STORAGE_CONNECTION_STRING', '')
@@ -20,3 +24,4 @@ def load_data(generated_data: Dict):
 
     except Exception as ex:
         print('Exception: \n', ex)
+

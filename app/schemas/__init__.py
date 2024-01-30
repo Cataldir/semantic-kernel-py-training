@@ -2,7 +2,7 @@
 A package that holds response schemas and models.
 """
 
-__all__ = ["BodyMessage", "RESPONSES"]
+__all__ = ["BodyMessage", "RESPONSES", "ChatEndpoint"]
 __author__ = "Ricardo Cataldi"
 __copyright__ = "Copyright 2022, Value Proposition Analyser team"
 __credits__ = ["Ricardo Cataldi <cataldi.ricardo@gmail.com>"]
@@ -12,3 +12,4 @@ __email__ = "<cataldi.ricardo@gmail.com>"
 __status__ = "In Development"
 
 from .responses import RESPONSES, BodyMessage
+from .requests import ChatEndpoint

@@ -1,14 +1,15 @@
 """
 The configuration for the web api.
 """
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from schemas import RESPONSES, BodyMessage
-from research import Researcher
+from app.schemas import RESPONSES, BodyMessage, ChatEndpoint
+from app.research import Researcher
+from app.bg_tasks import load_data
 
 
 tags_metadata: list[dict] = [
@@ -26,7 +27,7 @@ description: str = """
 
 app: FastAPI = FastAPI(
     title="Copilot API",
-    version="Alpha",
+    version="0.0.1a",
     description=description,
     openapi_tags=tags_metadata,
     openapi_url="/api/v1/openapi.json",
@@ -60,7 +61,7 @@ async def validation_exception_handler(
         success=False,
         type="Validation Error",
         title="Your request parameters didn't validate.",
-        detail={"invalid-params": exc.errors()},
+        data={"invalid-params": exc.errors()},
     )
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -69,16 +70,18 @@ async def validation_exception_handler(
 
 
 @app.post("/chat-with-history")
-async def connection_data(request: Request) -> JSONResponse:
+async def connection_data(prompt: ChatEndpoint, bg_tasks: BackgroundTasks) -> JSONResponse:
     """
     load_data loads the data into the Context
     """
-    agent = Researcher()
+    agent = Researcher(chat_id=prompt._id)
     response = await agent(
-        chat_name='researcher',
-        prompt="What is the difference between 2 apples and 2 bananas?"
+        chat_name=prompt.chat_name,
+        prompt=prompt.prompt,
+        max_tokens=prompt.max_tokens
     )
+    bg_tasks.add_task(load_data, response)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=jsonable_encoder({"message": response})
+        content=jsonable_encoder(response)
     )

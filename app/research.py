@@ -1,21 +1,19 @@
 from __future__ import annotations
 
 import uuid
-import asyncio
 import logging
 from typing import Dict
 from string import Template
 
-import tiktoken
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.kernel import KernelFunctionBase
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents.aio import SearchClient
 
-from chat.schemas import ChatSchema, SearchEngineSchema
-from chat.agents import Agent, ASYNC_CALLABLE
-from settings.mongo import MongoSettings, MongoAccessor
+from app.chat.schemas import ChatSchema, SearchEngineSchema
+from app.chat.agents import Agent, ASYNC_CALLABLE
+from app.settings.mongo import MongoSettings, MongoAccessor
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -65,8 +63,10 @@ class Researcher(Agent):
             str: The prepared prompt with placeholders replaced.
         """
         prompt_template = """
-        You are a research assistant.\n\n
-        You will guide the user through the process of finding information and preparing the proper summarization of topic research.
+        You are a research assistant.\n
+        You will guide the user through the process of finding information and preparing the proper summarization of topic research.\n
+        Your answer should be structured in topics, based on the content of the chat history and the presaved terms of the research.\n
+        Your answer should have at least 1000 words.\n
 
         \n------------------------------\n
 
@@ -91,7 +91,8 @@ class Researcher(Agent):
                 print('Error: ', e)
                 results[key] = ''
         result = template.substitute(results)
-        logger.info('Input tokens: ', len(tiktoken.get_encoding("cl100k_base").encode(result)))
+        self.response['input_tokens'] = len(self._encode(result))
+        self.response['input_prompt'] = result
         return result
 
     async def prompt(self, prompt: str, **kwargs) -> KernelFunctionBase:
@@ -134,14 +135,3 @@ class Researcher(Agent):
                 if result.get('@search.score', 0) > 20:
                     research_docs += result['content'] + '\n'
         return research_docs
-
-
-
-if __name__ == "__main__":
-    agent = Researcher()
-    response = asyncio.run(agent(
-        chat_name='researcher',
-        prompt="How does transformers work in LLM?",
-        max_tokens=4096
-    ))
-    logger.info('Output tokens: ', len(tiktoken.get_encoding("cl100k_base").encode(response.get('response'))))
