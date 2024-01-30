@@ -1,13 +1,6 @@
 """
 The configuration for the web api.
 """
-import json
-from base64 import encode
-from typing import Any, Type, Union
-
-import jwt
-import polars as pl
-
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -15,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from schemas import RESPONSES, BodyMessage
+from research import Researcher
 
 
 tags_metadata: list[dict] = [
@@ -74,12 +68,17 @@ async def validation_exception_handler(
     )
 
 
-@app.get("/connection-data")
+@app.post("/chat-with-history")
 async def connection_data(request: Request) -> JSONResponse:
     """
     load_data loads the data into the Context
     """
-    request_data: bytes = await request.body()
-    data: pl.DataFrame = 
-    response: JSONResponse = JSONResponse({"result": data.write_json()})
-    return response
+    agent = Researcher()
+    response = await agent(
+        chat_name='researcher',
+        prompt="What is the difference between 2 apples and 2 bananas?"
+    )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder({"message": response})
+    )

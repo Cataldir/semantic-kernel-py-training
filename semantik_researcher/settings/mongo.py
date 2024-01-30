@@ -22,9 +22,9 @@ class MongoSettings(BaseConnection, metaclass=SettingsMeta):
     connects to a PostGres database using asyncpg
     """
 
-    engine: str = field(default=os.environ.get("DB_ENGINE", "mongodb"))
-    host: str = field(default=os.environ.get("DB_HOST", "localhost"))
-    port: str = field(default=os.environ.get("DB_PORT", "27017"))
+    engine: str = field(default=os.environ.get("DC_ENGINE", "mongodb"))
+    host: str = field(default=os.environ.get("DC_HOST", "localhost"))
+    port: str = field(default=os.environ.get("DC_PORT", "27017"))
 
     def connect(self) -> AgnosticClient:
         """
