@@ -1,0 +1,4 @@
+# Agents on Semantic Kernel
+
+Agents are enabled in SK [through experiments](https://github.com/microsoft/semantic-kernel/tree/main/dotnet/src/Experimental/Agents), but you can also create them depending on your need.
+In this repository, we have build a Agent class by applying the [template method](https://refactoring.guru/design-patterns/template-method). The __call__ dunder method is used as the template method for the class, and the structure of the agent is meant to use Semantik Kernell context to improve the capacity and drive the behaviour according to a set of methods, closelly related to the implementation of plans. The idea is to set the methods that you want the agent to perform within its context, by providing a Python dictionary with the name of the pattern that should be under the context and 

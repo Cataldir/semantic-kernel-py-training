@@ -15,11 +15,11 @@ ASYNC_CALLABLE = Coroutine[Any, Callable[..., str], str]
 class Agent(ABC):
 
     def __init__(
-            self,
-            chat_id: Optional[uuid.UUID] = None,
-            *args,
-            **kwargs
-        ) -> None:
+        self,
+        chat_id: Optional[uuid.UUID] = None,
+        *args,
+        **kwargs
+    ) -> None:
         """
         Initializes the Agent class.
 
@@ -28,9 +28,8 @@ class Agent(ABC):
         """
         self.kernel = sk.Kernel(*args, **kwargs)
         self.tool_mapping: Dict[str, ASYNC_CALLABLE]
-        if not chat_id:
-            chat_id = uuid.uuid4()
-        self._id: uuid.UUID = chat_id
+        self.context = self.kernel.create_new_context()
+        self._id: uuid.UUID = chat_id or uuid.uuid4()
         self.response: Dict[str, Any] = {'chat_id': str(self._id)}
 
     async def __call__(self, chat_name: str, prompt: str, *args, **kwargs) -> Dict:
@@ -48,7 +47,8 @@ class Agent(ABC):
         """
         self._config_service(chat_name, *args)
         semantic_function: KernelFunctionBase = await self.prompt(prompt, **kwargs)
-        chat_answer = semantic_function(prompt)
+        self.context['input'] = prompt
+        chat_answer = semantic_function.invoke(context=self.context)
         self.response['output_tokens'] = len(self._encode(chat_answer.variables.variables.get('input', 0)))
         self.response.update(chat_answer.model_dump())
         return self.response

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 import logging
-from typing import Dict
+from typing import Dict, Type
 from string import Template
 
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
@@ -20,7 +20,12 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 class Researcher(Agent):
-    def _config_service(self, chat_name: str, *args, **kwargs) -> None:
+    def _config_service(
+            self,
+            chat_name: str,
+            completion: Type[AzureChatCompletion] = AzureChatCompletion,
+            schema: ChatSchema = ChatSchema()
+        ) -> None:
         """
         Configures and adds a chat service to the kernel.
 
@@ -31,7 +36,7 @@ class Researcher(Agent):
         """
         self.kernel.add_chat_service(
             chat_name,
-            AzureChatCompletion(**ChatSchema().model_dump())
+            completion(**schema.model_dump())
         )
 
     async def _chat_history(self, *args, **kwargs) -> str:
@@ -62,6 +67,7 @@ class Researcher(Agent):
         Returns:
             str: The prepared prompt with placeholders replaced.
         """
+
         prompt_template = """
         You are a research assistant.\n
         You will guide the user through the process of finding information and preparing the proper summarization of topic research.\n
