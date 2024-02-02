@@ -22,11 +22,11 @@ tags_metadata: list[dict] = [
 ]
 
 description: str = """
-    A web API to serve real-time chat completion on Azure Open AI.
+    A web API to serve as a web app for Semantic Kernell testing and understanding.
 """
 
 app: FastAPI = FastAPI(
-    title="Copilot API",
+    title="Semantic Kernell Study API",
     version="0.0.1a",
     description=description,
     openapi_tags=tags_metadata,
@@ -45,7 +45,8 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
+    request: Request,
+    exc: RequestValidationError
 ) -> JSONResponse:
     """
     validation_exception_handler Exception handler for validations.
