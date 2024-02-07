@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import uuid
 import logging
-from typing import Dict, Type
-from string import Template
+from typing import Type
 
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.kernel import KernelFunctionBase
@@ -11,8 +10,10 @@ from semantic_kernel.kernel import KernelFunctionBase
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents.aio import SearchClient
 
-from app.chat.schemas import ChatSchema, SearchEngineSchema
-from app.chat.agents import Agent, ASYNC_CALLABLE
+from pymongo.errors import ServerSelectionTimeoutError
+
+from app.agents.agents import Agent
+from app.schemas.agents import ChatSchema, SearchEngineSchema
 from app.settings.mongo import MongoSettings, MongoAccessor
 
 
@@ -20,12 +21,13 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 class Researcher(Agent):
+
     def _config_service(
-            self,
-            chat_name: str,
-            completion: Type[AzureChatCompletion] = AzureChatCompletion,
-            schema: ChatSchema = ChatSchema()
-        ) -> None:
+        self,
+        chat_name: str,
+        completion: Type[AzureChatCompletion] = AzureChatCompletion,
+        schema: ChatSchema = ChatSchema()
+    ) -> None:
         """
         Configures and adds a chat service to the kernel.
 
@@ -39,7 +41,11 @@ class Researcher(Agent):
             completion(**schema.model_dump())
         )
 
-    async def _chat_history(self, *args, **kwargs) -> str:
+    async def _chat_history(
+        self,
+        overlapping_percent: float = 0,
+        max_messages: int = 10
+    ) -> str:
         """
         Retrieves the chat history from the database.
 
@@ -50,56 +56,14 @@ class Researcher(Agent):
         Returns:
             str: The chat history as a string.
         """
-        db_settings = MongoSettings()
-        db = MongoAccessor('chat', db_settings)
-        history = await db.read(collection='chat_history', document_id=uuid.uuid4())
+        try:
+            db_settings = MongoSettings()
+            db = MongoAccessor('chat', db_settings)
+            history = await db.read(collection='chat_history', document_id=uuid.uuid4())
+        except ServerSelectionTimeoutError as e:
+            logger.error(f'Error retrieving chat history: {e}')
+            history = ''
         return history
-
-    async def _prepare_prompt(self, tool_mapping: Dict[str, ASYNC_CALLABLE], *args) -> str:
-        """
-        Prepares a prompt for the researcher by replacing placeholders with values from async callables.
-
-        Args:
-            tool_mapping (Dict[str, ASYNC_CALLABLE]): A mapping of placeholders to asynchronous callable functions.
-            *args: Additional arguments to pass to the callable functions.
-            **kwargs: Arbitrary keyword arguments for the chat service.
-
-        Returns:
-            str: The prepared prompt with placeholders replaced.
-        """
-
-        prompt_template = """
-        You are a research assistant.\n
-        You will guide the user through the process of finding information and preparing the proper summarization of topic research.\n
-        Your answer should be structured in topics, based on the content of the chat history and the presaved terms of the research.\n
-        Your answer should have at least 1000 words.\n
-
-        \n------------------------------\n
-
-        Consider the following chat history in your answers:\n
-        {$CHAT_HISTORY}
-
-        \n------------------------------\n
-
-        Consider the following presaved terms of the research:\n
-        {$RESEARCH_TOPICS}
-
-        \n------------------------------\n
-
-        Provide a summary to a research based on the following question:\n
-        """
-        template = Template(prompt_template)
-        results = {}
-        for key, function in tool_mapping.items():
-            try:
-                results[key] = await function(*args)
-            except Exception as e:
-                print('Error: ', e)
-                results[key] = ''
-        result = template.substitute(results)
-        self.response['input_tokens'] = len(self._encode(result))
-        self.response['input_prompt'] = result
-        return result
 
     async def prompt(self, prompt: str, **kwargs) -> KernelFunctionBase:
         """
@@ -112,11 +76,32 @@ class Researcher(Agent):
         Returns:
             KernelFunctionBase: The created semantic function.
         """
-        tool_mapping: Dict[str, ASYNC_CALLABLE] = {}
-        tool_mapping['CHAT_HISTORY'] = self._chat_history
-        tool_mapping['RESEARCH_TOPICS'] = self.augumented_retrieve
-        instructions: str = await self._prepare_prompt(tool_mapping, *[prompt, ])
-        return self.kernel.create_semantic_function("%s \n {{$input}}" % instructions, **kwargs)
+
+        prompt_template = """
+        You are a research assistant.\n
+        You will write a summary of the research, with a brief introduction and a review of the topic.\n
+        Your answer should be structured in topics, based on the content of the chat history and the presaved terms of the research.\n
+        Your answer should have at least 1000 words.\n
+        \n------------------------------\n
+        Consider the following chat history in your answers:\n
+        {{$CHAT_HISTORY}}
+        \n------------------------------\n
+        Consider the following presaved researched documents:\n
+        {{$RESEARCH_TOPICS}}
+        \n------------------------------\n
+        Provide a summary to a research based on the following question:\n
+        {{$input}}
+        """
+
+        chat_history_params = {
+            k: kwargs.pop(k)
+            for k in list(kwargs.keys())
+            if k in ['overlapping_percent', 'max_messages']
+        }
+
+        self.context['CHAT_HISTORY'] = await self._chat_history(**chat_history_params)
+        self.context['RESEARCH_TOPICS'] = await self.augumented_retrieve(prompt)
+        return self.kernel.create_semantic_function(prompt_template, **kwargs)
 
     async def augumented_retrieve(self, prompt: str) -> str:
         """
