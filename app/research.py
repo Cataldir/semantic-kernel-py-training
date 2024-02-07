@@ -15,6 +15,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 from app.agents.agents import Agent
 from app.schemas.agents import ChatSchema, SearchEngineSchema
 from app.settings.mongo import MongoSettings, MongoAccessor
+from app.utils.tracker import evaluate_performance
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class Researcher(Agent):
             history = ''
         return history
 
+    @evaluate_performance
     async def prompt(self, prompt: str, **kwargs) -> KernelFunctionBase:
         """
         Creates and returns a semantic function based on the given prompt and tool mappings.
@@ -100,10 +102,10 @@ class Researcher(Agent):
         }
 
         self.context['CHAT_HISTORY'] = await self._chat_history(**chat_history_params)
-        self.context['RESEARCH_TOPICS'] = await self.augumented_retrieve(prompt)
+        self.context['RESEARCH_TOPICS'] = await self.augmented_retrieve(prompt)
         return self.kernel.create_semantic_function(prompt_template, **kwargs)
 
-    async def augumented_retrieve(self, prompt: str) -> str:
+    async def augmented_retrieve(self, prompt: str) -> str:
         """
         Performs an augmented retrieval of research documents based on the provided prompt.
 

@@ -29,13 +29,20 @@ class Agent(ABC):
         Returns:
             None
         """
+
         self.kernel = sk.Kernel(*args, **kwargs)
         self.tool_mapping: Dict[str, ASYNC_CALLABLE]
         self.context = self.kernel.create_new_context()
         self._id: uuid.UUID = chat_id or uuid.uuid4()
         self.response: Dict[str, Any] = {'chat_id': str(self._id)}
 
-    async def __call__(self, chat_name: str, prompt: str, *args, **kwargs) -> Dict:
+    async def __call__(
+        self,
+        chat_name: str,
+        prompt: str,
+        *args,
+        **kwargs
+    ) -> Dict:
         """
         Configures the service and returns the result of the prompt function.
 
@@ -50,7 +57,7 @@ class Agent(ABC):
         """
         self._config_service(chat_name, *args)
         semantic_function: KernelFunctionBase = await self.prompt(prompt, **kwargs)
-        # ToDo: Validate how to extract the input and the amount of used tokens
+        #ToDo: Validate how to extract the input and the amount of used tokens
         #self.response['input'] = self.context.model_dump(mode='json')
         #self.response['input_tokens'] = len(self._encode(self.context.result))
         chat_answer = await semantic_function.invoke_async(context=self.context)

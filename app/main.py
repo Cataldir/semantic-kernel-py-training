@@ -71,7 +71,10 @@ async def validation_exception_handler(
 
 
 @app.post("/chat-with-history")
-async def connection_data(prompt: ChatEndpoint, bg_tasks: BackgroundTasks) -> JSONResponse:
+async def connection_data(
+    prompt: ChatEndpoint,
+    bg_tasks: BackgroundTasks
+) -> JSONResponse:
     """
     load_data loads the data into the Context
     """
