@@ -61,6 +61,7 @@ class Agent(ABC):
         #self.response['input'] = self.context.model_dump(mode='json')
         #self.response['input_tokens'] = len(self._encode(self.context.result))
         chat_answer = await semantic_function.invoke_async(context=self.context)
+        # ToDo: Verify which is the new way of calling the semantic function asynchroneously
         self.response['completion_tokens'] = len(self._encode(chat_answer.result))
         self.response.update(chat_answer.model_dump())
         return self.response

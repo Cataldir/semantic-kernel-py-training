@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.schemas import RESPONSES, BodyMessage, ChatEndpoint
-from app.research import Researcher
+from app.patterns.simple import SimpleRAG
 from app.bg_tasks import load_data
 
 
@@ -78,7 +78,7 @@ async def connection_data(
     """
     load_data loads the data into the Context
     """
-    agent = Researcher(chat_id=prompt._id)
+    agent = SimpleRAG(chat_id=prompt._id)
     response = await agent(
         chat_name=prompt.chat_name,
         prompt=prompt.prompt,

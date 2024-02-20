@@ -4,6 +4,8 @@ import uuid
 import logging
 from typing import Type
 
+import ray
+
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.kernel import KernelFunctionBase
 
@@ -21,7 +23,8 @@ from app.utils.tracker import evaluate_performance
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-class Researcher(Agent):
+@ray.remote
+class SimpleRAG(Agent):
 
     def _config_service(
         self,
