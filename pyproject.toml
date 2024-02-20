@@ -23,6 +23,7 @@ langchain = "^0.0.340"
 promptflow = "^1.4.1"
 azure-search = "^1.0.0b2"
 tiktoken = "^0.5.2"
+ray = "^2.9.2"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^2.15.9"
