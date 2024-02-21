@@ -1,5 +1,7 @@
 # Semantic Kernel (Python) - Training and Understanding
 
+The beauty of Semantic Kernel relies on the elegant way that it orchestrate the communication with the LLMs, by providing concise and well-defined separations between semantic functions (those that expect an interaction with the LLM) from native functions (those that doesn't). Also, in a different strategy from LangChain, Semantic Kernel specializes in the communication with the LLM through a kernel of actions, which is more straighforward and in accordance with microservices architectural patterns.
+
 ## About this repository
 
 This is a repository majorly oriented to understand the capabilities and limitations of Semantic Kernel as a Python package.
@@ -18,8 +20,8 @@ procedures that should be timelly called whenever you have the need in the logic
 
 From the perspective of Semantic Kernel orchestration, an AI agent is a modular abstraction that can possess a persona, can perform actions in response to user input, and can easily communicate with other agents. You might also view an agent from an AI-as-a-service perspective or as an autonomous worker.
 
-(Check this explanation on agents for SK)[https://github.com/Cataldir/semantic-kernel-py-training/tree/main/app/chat]
-(And this is the official way of doing it)[https://learn.microsoft.com/en-us/semantic-kernel/agents/]
+[Check this explanation on agents for SK](https://github.com/Cataldir/semantic-kernel-py-training/tree/main/app/agents)
+[And this is the official way of doing it](https://learn.microsoft.com/en-us/semantic-kernel/agents/)
 
 ## Context
 
