@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.schemas import RESPONSES, BodyMessage, ChatEndpoint
-from app.patterns.simple import SimpleRAG
+from app.patterns.simple.simple import SimpleRAG
 from app.bg_tasks import load_data
 
 

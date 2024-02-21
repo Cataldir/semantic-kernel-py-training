@@ -25,7 +25,6 @@ RUN buildDeps="build-essential" \
     && apt-get install --no-install-recommends -y \
         curl \
         vim \
-        netcat \
     && apt-get install -y --no-install-recommends $buildDeps \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,72 +36,29 @@ RUN curl -sSL https://install.python-poetry.org | python && \
 # We copy our Python requirements here to cache them
 # and install only runtime deps using poetry
 WORKDIR $PYSETUP_PATH
-COPY ./pyproject.toml ./
-RUN poetry install --no-dev  # respects
+COPY pyproject.toml ./
+RUN poetry install --only main  # respects
 
 
-# 'development' stage installs all dev deps and can be used to develop code.
-# For example using docker-compose to mount local volume under /app
-FROM python-base as development
-ENV FASTAPI_ENV=development
-
-# Copying poetry and venv into image
-COPY --from=builder-base $POETRY_HOME $POETRY_HOME
-COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
-
-# Copying in our entrypoint
-COPY ./.docker/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
-# venv already has runtime deps installed we get a quicker install
-WORKDIR $PYSETUP_PATH
-RUN poetry install
-
-# set the working directory for the development stage
-WORKDIR /app
-COPY . .
-
-# start the app
-EXPOSE 8000
-ENTRYPOINT /docker-entrypoint.sh $0 $@
-CMD ["python", "--reload", "--host=0.0.0.0", "--port=8000", "app.main:app"]
-
-
-# 'lint' stage runs black, isort, flake8 and pylint
-# running in check mode means build will fail if any linting errors occur
-FROM development AS lint
-RUN black --config ./pyproject.toml --check /app/app
-RUN isort --settings-path ./pyproject.toml --check-only /app/app
-RUN flake8 app --append-config=.flake8 --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
-RUN pylint --rcfile=..pylintrc app
-CMD ["tail", "-f", "/dev/null"]
-
-
-# 'test' stage runs our unit tests with pytest and
-# coverage.  Build will fail if test coverage is under 95%
-FROM development AS test
-RUN coverage run --rcfile ./pyproject.toml -m pytest app/tests/test_main_functions.py
-RUN coverage report --fail-under 95
-
-
-# 'production' stage uses the clean 'python-base' stage and copyies
-# in only our runtime deps that were installed in the 'builder-base'
-FROM python-base as production
-ENV FASTAPI_ENV=production
+FROM python-base as environment
+ENV SKAPP_ENV=environment
 
 COPY --from=builder-base "$VENV_PATH" "$VENV_PATH"
-COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
-COPY ./docker/docker-entrypoint.sh /docker-entrypoint.sh
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Create user
-RUN groupadd -g 1500 fastapp && \
-    useradd -m -u 1500 -g fastapp fastapp
+RUN groupadd -g 1500 skapp && \
+    useradd -m -u 1500 -g skapp skapp && \
+    mkdir -p src
 
-COPY --chown=fastapp:fastapp ./app /app
-USER fastapp
-WORKDIR /app
+RUN chown -R skapp:skapp src
+
+USER skapp
+WORKDIR /src
+COPY app ./app
 
 ENTRYPOINT /docker-entrypoint.sh $0 $@
-CMD ["uvicorn", "--reload", "--proxy-headers", "--host=0.0.0.0", "--port=8000", "app.main:app"]
+EXPOSE 8080 8000
+CMD ["uvicorn", "--reload", "--proxy-headers", "--host=0.0.0.0", "--port=8080", "app.main:app"]
