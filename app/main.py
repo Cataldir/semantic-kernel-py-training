@@ -7,16 +7,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.schemas import RESPONSES, BodyMessage, ChatEndpoint
+from app.schemas import RESPONSES, BodyMessage, ChatEndpoint, ChatEndpointWithMemory
 from app.patterns.simple.simple import SimpleRAG
+from app.tools.memories import CosmosMongoMemory
 from app.bg_tasks import load_data
 
 
 tags_metadata: list[dict] = [
     {
-        "name": "Copilot API",
+        "name": "Semantic Kernell Study API",
         "description": """
-        Provides in-place chat functionalities and data retrieval.
+        Provides in-depth explanation, examples and capabilitites to work with Microsoft's semantic kernel.
         """,
     }
 ]
@@ -62,7 +63,7 @@ async def validation_exception_handler(
         success=False,
         type="Validation Error",
         title="Your request parameters didn't validate.",
-        data={"invalid-params": exc.errors()},
+        data={"invalid-params": list(exc.errors())},
     )
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,8 +71,73 @@ async def validation_exception_handler(
     )
 
 
-@app.post("/chat-with-history")
-async def connection_data(
+@app.post("/simple-rag/")
+async def chat_with_simple_rag(
+    prompt: ChatEndpoint,
+    bg_tasks: BackgroundTasks
+) -> JSONResponse:
+    """
+    load_data loads the data into the Context
+    """
+    agent = SimpleRAG(chat_id=prompt._id)
+    response = await agent(
+        chat_name=prompt.chat_name,
+        prompt=prompt.prompt,
+        max_tokens=prompt.max_tokens
+    )
+    bg_tasks.add_task(load_data, response)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder(response)
+    )
+
+
+@app.post("/simple-rag-with-memory/")
+async def chat_with_simple_rag_with_memory(
+    prompt: ChatEndpointWithMemory,
+    bg_tasks: BackgroundTasks
+) -> JSONResponse:
+    """
+    load_data loads the data into the Context
+    """
+    print(prompt.connection_string)
+    memory = CosmosMongoMemory('ragMemory', prompt.connection_string)
+    agent = SimpleRAG(chat_id=prompt._id)
+    agent._chat_history(memory)
+    response = await agent(
+        chat_name=prompt.chat_name,
+        prompt=prompt.prompt,
+        max_tokens=prompt.max_tokens
+    )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder(response)
+    )
+
+
+@app.post("/multiplexor-rag/")
+async def chat_with_multiplexor_rag(
+    prompt: ChatEndpoint,
+    bg_tasks: BackgroundTasks
+) -> JSONResponse:
+    """
+    load_data loads the data into the Context
+    """
+    agent = SimpleRAG(chat_id=prompt._id)
+    response = await agent(
+        chat_name=prompt.chat_name,
+        prompt=prompt.prompt,
+        max_tokens=prompt.max_tokens
+    )
+    bg_tasks.add_task(load_data, response)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder(response)
+    )
+
+
+@app.post("/agent-swarm/")
+async def chat_with_agent_swarm(
     prompt: ChatEndpoint,
     bg_tasks: BackgroundTasks
 ) -> JSONResponse:

@@ -2,35 +2,31 @@ from __future__ import annotations
 
 import uuid
 import logging
-from typing import Type
-
-import ray
+from typing import Type, Optional
 
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
-from semantic_kernel.kernel import KernelFunctionBase
+from semantic_kernel.kernel import KernelFunction
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents.aio import SearchClient
 
-from pymongo.errors import ServerSelectionTimeoutError
-
 from app.agents.agents import Agent
 from app.schemas.agents import ChatSchema, SearchEngineSchema
-from app.settings.mongo import MongoSettings, MongoAccessor
+from app.tools.memories import CosmosMongoMemory
 from app.utils.tracker import evaluate_performance
 
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-@ray.remote
 class SimpleRAG(Agent):
 
     def _config_service(
         self,
         chat_name: str,
         completion: Type[AzureChatCompletion] = AzureChatCompletion,
-        schema: ChatSchema = ChatSchema()
+        schema: ChatSchema = ChatSchema(),
+        memory: Optional[CosmosMongoMemory] = None
     ) -> None:
         """
         Configures and adds a chat service to the kernel.
@@ -44,33 +40,11 @@ class SimpleRAG(Agent):
             chat_name,
             completion(**schema.model_dump())
         )
-
-    async def _chat_history(
-        self,
-        overlapping_percent: float = 0,
-        max_messages: int = 10
-    ) -> str:
-        """
-        Retrieves the chat history from the database.
-
-        Args:
-            *args: Variable length argument list for the chat service.
-            **kwargs: Arbitrary keyword arguments for the chat service.
-
-        Returns:
-            str: The chat history as a string.
-        """
-        try:
-            db_settings = MongoSettings()
-            db = MongoAccessor('chat', db_settings)
-            history = await db.read(collection='chat_history', document_id=uuid.uuid4())
-        except ServerSelectionTimeoutError as e:
-            logger.error(f'Error retrieving chat history: {e}')
-            history = ''
-        return history
+        if memory:
+            self._chat_history(memory)
 
     @evaluate_performance
-    async def prompt(self, prompt: str, **kwargs) -> KernelFunctionBase:
+    async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
         """
         Creates and returns a semantic function based on the given prompt and tool mappings.
 
@@ -88,8 +62,8 @@ class SimpleRAG(Agent):
         Your answer should be structured in topics, based on the content of the chat history and the presaved terms of the research.\n
         Your answer should have at least 1000 words.\n
         \n------------------------------\n
-        Consider the following chat history in your answers:\n
-        {{$CHAT_HISTORY}}
+        Consider the following chat history:\n
+        {{$chat_history}}
         \n------------------------------\n
         Consider the following presaved researched documents:\n
         {{$RESEARCH_TOPICS}}
@@ -97,15 +71,10 @@ class SimpleRAG(Agent):
         Provide a summary to a research based on the following question:\n
         {{$input}}
         """
-
-        chat_history_params = {
-            k: kwargs.pop(k)
-            for k in list(kwargs.keys())
-            if k in ['overlapping_percent', 'max_messages']
-        }
-
-        self.context['CHAT_HISTORY'] = await self._chat_history(**chat_history_params)
+    
+        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10)
         self.context['RESEARCH_TOPICS'] = await self.augmented_retrieve(prompt)
+        self.context['input'] = prompt
         return self.kernel.create_semantic_function(prompt_template, **kwargs)
 
     async def augmented_retrieve(self, prompt: str) -> str:

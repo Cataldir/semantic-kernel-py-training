@@ -12,7 +12,8 @@ on:
 
 jobs:
   build:
-    # Defines the overall strategy parameters for the build job
+    permissions:
+      id-token: write
     strategy:
       fail-fast: false
       matrix: # The set of configuration parameters that the job will use
@@ -64,12 +65,13 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
-      
+
       - name: Login to Azure
         uses: azure/login@v1
         with:
+          app-name: 'ai-sandbox-rcataldi'
+          slot-name: 'Production'
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B113C46FB94642F99294A4C8AABEBDC5 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F74DCD768C9541B69A773650F7B1AD1D }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D542B6788A4A4B8792EA4E77223F787A }}
 
       - name: 'Deploy to Azure Web App'

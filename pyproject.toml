@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-semantic-kernel = "^0.4.0.dev0"
+semantic-kernel = "^0.5.0.dev0"
 fastapi = "^0.104.1"
 polars = "^0.19.19"
 motor = "^3.3.2"
@@ -25,6 +25,7 @@ azure-search = "^1.0.0b2"
 tiktoken = "^0.5.2"
 ray = "^2.9.2"
 uvicorn = "^0.20.0"
+scikit-learn = "^1.4.1.post1"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^2.15.9"

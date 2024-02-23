@@ -6,10 +6,12 @@ from typing import Dict, Callable, Coroutine, Any, Optional, List, Type
 
 import tiktoken
 import semantic_kernel as sk
-from semantic_kernel.kernel import KernelFunctionBase
+from semantic_kernel.kernel import KernelFunction
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 
 from app.schemas.agents import ChatSchema
+from app.tools.memories import CosmosAbstractMemory
+from app.tools.embeddings import GPTEmbeddingGenerator
 
 
 ASYNC_CALLABLE = Coroutine[Any, Callable[..., str], str]
@@ -30,10 +32,9 @@ class Agent(ABC):
             None
         """
 
-        self.kernel = sk.Kernel(*args, **kwargs)
-        self.tool_mapping: Dict[str, ASYNC_CALLABLE]
-        self.context = self.kernel.create_new_context()
         self._id: uuid.UUID = chat_id or uuid.uuid4()
+        self.kernel = sk.Kernel(*args, **kwargs)
+        self.context = self.kernel.create_new_context()
         self.response: Dict[str, Any] = {'chat_id': str(self._id)}
 
     async def __call__(
@@ -56,14 +57,13 @@ class Agent(ABC):
             SKFunctionBase: The result of the prompt function.
         """
         self._config_service(chat_name, *args)
-        semantic_function: KernelFunctionBase = await self.prompt(prompt, **kwargs)
+        semantic_function: KernelFunction = await self.prompt(prompt, **kwargs)
         #ToDo: Validate how to extract the input and the amount of used tokens
         #self.response['input'] = self.context.model_dump(mode='json')
         #self.response['input_tokens'] = len(self._encode(self.context.result))
-        chat_answer = await semantic_function.invoke_async(context=self.context)
-        # ToDo: Verify which is the new way of calling the semantic function asynchroneously
+        chat_answer = await semantic_function(context=self.context)
         self.response['completion_tokens'] = len(self._encode(chat_answer.result))
-        self.response.update(chat_answer.model_dump())
+        self.response.update({'response': chat_answer.result})
         return self.response
 
     @abstractmethod
@@ -90,7 +90,18 @@ class Agent(ABC):
         """
 
     @abstractmethod
-    async def _chat_history(self) -> str:
+    async def prompt(self, prompt: str) -> KernelFunction:
+        """
+        Creates a semantic function with the given instructions.
+
+        Args:
+            instructions (str): Instructions for the semantic function.
+
+        Returns:
+            SKFunctionBase: The created semantic function.
+        """
+
+    def _chat_history(self, memory: CosmosAbstractMemory) -> None:
         """
         Adds a AI service to the kernel.
         It could be a text completion service, text embedding service or a chat service.
@@ -101,18 +112,7 @@ class Agent(ABC):
         Returns:
             None
         """
-
-    @abstractmethod
-    async def prompt(self, prompt: str) -> KernelFunctionBase:
-        """
-        Creates a semantic function with the given instructions.
-
-        Args:
-            instructions (str): Instructions for the semantic function.
-
-        Returns:
-            SKFunctionBase: The created semantic function.
-        """
+        self.kernel.use_memory(memory, embeddings_generator=GPTEmbeddingGenerator())
 
     def _encode(self, input: str) -> List[int]:
         """

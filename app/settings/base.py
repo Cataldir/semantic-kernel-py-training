@@ -39,6 +39,18 @@ class BaseConnection(ABC, metaclass=SettingsMeta):
         connects to a database
         """
 
+    @abstractmethod
+    def database(self, name: Optional[str]):
+        """
+        Retrieves a database based on the current connection
+
+        Args:
+            name (str): _description_
+
+        Returns:
+            AgnosticDatabase: _description_
+        """
+
 
 class DataclassProtocol(Protocol):
     __dataclass_fields__: Dict

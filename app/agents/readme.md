@@ -14,6 +14,15 @@ In this repository, we have build a Agent class by applying the [template method
 
 Expanding the "Agent" class effectively requires a nuanced understanding of both the foundational aspects of the class and the specific requirements of the context in which the agent will operate. The goal is to enhance the agent's functionality while maintaining the integrity and flexibility of its core structure.
 
+Important aspects of the "Agent" class:
+
+- It has its own kernel, because it needs to isolate its own orchestration. This is the aspect that majorly differentiates it from the "Planner" class from Semantic Kernel. More on this bellow
+- It also has its own context and its own memory. This is a way of isolating its reasoning, by contextualizing and 
+
+### Why Agents and not Planners?
+
+Planners are 
+
 ### Embracing Specialization Through Subclassing
 
 The creation of specialized subclasses, like the [SimpleRag](https://github.com/Cataldir/semantic-kernel-py-training/tree/main/app/simple/simple.py) class, exemplifies a strategic approach to expansion. This method preserves the original structure of the Agent class while introducing new functionalities tailored to specific needs. Subclassing allows us to leverage the robustness of the base class and extend its capabilities in a controlled and organized manner. This ensures that the core functionalities remain intact and reusable across different contexts.

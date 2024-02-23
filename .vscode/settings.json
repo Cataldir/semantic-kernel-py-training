@@ -14,7 +14,7 @@
     "autoDocstring.includeExtendedSummary": false,
     "autoDocstring.includeName": false,
     "autoDocstring.startOnNewLine": true,
-    "python.defaultInterpreterPath": "C:\\Users\\ricar\\Github\\semantic-kernel-py-training\\.venv\\Scripts\\python.exe",
+    "python.defaultInterpreterPath": ".venv\\Scripts\\python.exe",
     "python.autoComplete.extraPaths": [
     
     ],
