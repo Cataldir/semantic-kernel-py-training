@@ -8,7 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 semantic-kernel = "^0.4.0.dev0"
-fastapi = "^0.104.1"
+fastapi = "^0.109.1"
 polars = "^0.19.19"
 motor = "^3.3.2"
 asyncpg = "^0.29.0"
