@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from dataclasses import dataclass, field
 
 import asyncpg
@@ -10,7 +11,7 @@ load_dotenv(find_dotenv())
 
 
 @dataclass
-class SQLSettings(BaseConnection, metaclass=SettingsMeta):
+class PostgresSettings(BaseConnection, metaclass=SettingsMeta):
     """
     Database connection settings component
 
@@ -19,15 +20,24 @@ class SQLSettings(BaseConnection, metaclass=SettingsMeta):
 
     engine: str = field(default=os.environ.get("DB_ENGINE", "postgres"))
     host: str = field(default=os.environ.get("DB_HOST", "localhost"))
-    database: str = field(default=os.environ.get("DB_NAME", "postgres"))
     user: str = field(default=os.environ.get("DB_USER", "postgres"))
-    password: str = field(
-        default=os.environ.get("DB_PASSWORD", "postgrespw")
-    )
+    password: str = field(default=os.environ.get("DB_PASSWORD", "postgrespw"))
     port: str = field(default=os.environ.get("DB_PORT", "5432"))
-    base_schema: str = field(
-        default=os.environ.get("BASE_SCHEMA", "base_schema")
-    )
+    base_schema: str = field(default=os.environ.get("BASE_SCHEMA", "base_schema"))
+
+    def database(self, name: Optional[str]) -> str:
+        """
+        Retrieves a database based on the current connection
+
+        Args:
+            name (str): _description_
+
+        Returns:
+            AgnosticDatabase: _description_
+        """
+        if not name:
+            name = 'postgres'
+        return name
 
     async def connect(self) -> asyncpg.Connection:
         """

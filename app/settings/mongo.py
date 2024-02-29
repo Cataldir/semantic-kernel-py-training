@@ -1,15 +1,13 @@
 import os
-import uuid
-from typing import Any
+from typing import Optional
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 
 from dotenv import find_dotenv, load_dotenv
-from pymongo.results import DeleteResult, UpdateResult, InsertOneResult
 from motor.core import AgnosticClient, AgnosticDatabase
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from .base import BaseConnection, SettingsMeta, DataclassProtocol
+from .base import BaseConnection, SettingsMeta
 
 load_dotenv(find_dotenv())
 
@@ -22,17 +20,17 @@ class MongoSettings(BaseConnection, metaclass=SettingsMeta):
     connects to a PostGres database using asyncpg
     """
 
-    engine: str = field(default=os.environ.get("DC_ENGINE", "mongodb"))
-    host: str = field(default=os.environ.get("DC_HOST", "localhost"))
-    port: str = field(default=os.environ.get("DC_PORT", "27017"))
+    engine: Optional[str] = field(default=os.environ.get("DC_ENGINE", "mongodb"))
+    host: Optional[str] = field(default=os.environ.get("DC_HOST", "localhost"))
+    port: Optional[str] = field(default=os.environ.get("DC_PORT", "27017"))
 
-    def connect(self) -> AgnosticClient:
+    async def connect(self, connection_string: Optional[str] = None) -> AgnosticClient:
         """
         connect to the database that is defined by the settings.
         """
-        connection: AgnosticClient = AsyncIOMotorClient(
-            f"{self.engine}://{self.host}:{self.port}"
-        )
+        if not connection_string:
+            connection_string = f"{self.engine}://{self.host}:{self.port}"
+        connection: AgnosticClient = AsyncIOMotorClient(connection_string)
         return connection
 
     def database(self, name: str) -> AgnosticDatabase:
@@ -47,33 +45,3 @@ class MongoSettings(BaseConnection, metaclass=SettingsMeta):
         """
         client: AgnosticClient = self.connect()
         return client[name]
-
-
-class MongoAccessor:
-    def __init__(self, database: str, *args) -> None:
-        settings: MongoSettings = MongoSettings(*args)
-        self.database: AgnosticDatabase = settings.database(database)
-
-    async def create(self, dataclass_instance: DataclassProtocol) -> Any:
-        document: dict[str, Any] = asdict(dataclass_instance)
-        for key, value in document.items():
-            if isinstance(value, uuid.UUID):
-                document[key] = str(value)
-        result: InsertOneResult = await self.database[
-            dataclass_instance.__class__.__name__
-        ].insert_one(document)
-        return result.inserted_id
-
-    async def read(self, collection: str, document_id: uuid.UUID):
-        result = await self.database[collection].find_one({"_id": document_id})
-        return result
-
-    async def update(self, document_id: uuid.UUID, dataclass_instance: DataclassProtocol):
-        result: UpdateResult = await self.database[
-            dataclass_instance.__class__.__name__
-        ].update_one({"_id": document_id}, {"$set": asdict(dataclass_instance)})
-        return result.modified_count
-
-    async def delete(self, collection: str, document_id: uuid.UUID):
-        result: DeleteResult = await self.database[collection].delete_one({"_id": document_id})
-        return result.deleted_count

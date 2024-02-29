@@ -1,0 +1,23 @@
+name: Deploy on Azure Container Registry
+
+on:
+  push:
+    paths:
+      - "src/docker/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ACR build
+        id: acr
+        uses: azure/acr-build@v1
+        with:
+          service_principal: ${{ secrets.service_principal }}
+          service_principal_password: ${{ secrets.service_principal_password }}
+          tenant: ${{ secrets.tenant }}
+          registry: ${{ secrets.registry }}
+          repository: ${{ secrets.repository }}
+          image: skapp
+          dockerfile: ../../Dockerfile
+          branch: main
