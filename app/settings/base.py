@@ -34,7 +34,7 @@ class SettingsMeta(ABCMeta):
 @dataclass
 class BaseConnection(ABC, metaclass=SettingsMeta):
     @abstractmethod
-    def connect(self):
+    async def connect(self):
         """
         connects to a database
         """

@@ -56,11 +56,9 @@ class Agent(ABC):
         Returns:
             SKFunctionBase: The result of the prompt function.
         """
+
         self._config_service(chat_name, *args)
         semantic_function: KernelFunction = await self.prompt(prompt, **kwargs)
-        #ToDo: Validate how to extract the input and the amount of used tokens
-        #self.response['input'] = self.context.model_dump(mode='json')
-        #self.response['input_tokens'] = len(self._encode(self.context.result))
         chat_answer = await semantic_function(context=self.context)
         self.response['completion_tokens'] = len(self._encode(chat_answer.result))
         self.response.update({'response': chat_answer.result})
@@ -78,7 +76,7 @@ class Agent(ABC):
 
         Args:
             deployment (str): Name of the deployment to work with
-        
+
         Returns:
             None
 
@@ -101,19 +99,6 @@ class Agent(ABC):
             SKFunctionBase: The created semantic function.
         """
 
-    def _chat_history(self, memory: CosmosAbstractMemory) -> None:
-        """
-        Adds a AI service to the kernel.
-        It could be a text completion service, text embedding service or a chat service.
-
-        Args:
-            input (str): Name of the deployment to work with
-        
-        Returns:
-            None
-        """
-        self.kernel.use_memory(memory, embeddings_generator=GPTEmbeddingGenerator())
-
     def _encode(self, input: str) -> List[int]:
         """
         Encodes the input using the tiktoken encoder.
@@ -126,3 +111,19 @@ class Agent(ABC):
         """
         encoder = tiktoken.get_encoding("cl100k_base")
         return encoder.encode(input)
+
+
+class MemoryAgent(Agent):
+
+    def _chat_history(self, memory: CosmosAbstractMemory) -> None:
+        """
+        Adds a AI service to the kernel.
+        It could be a text completion service, text embedding service or a chat service.
+
+        Args:
+            input (str): Name of the deployment to work with
+        
+        Returns:
+            None
+        """
+        self.kernel.use_memory(memory, embeddings_generator=GPTEmbeddingGenerator())

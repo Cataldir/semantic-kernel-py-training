@@ -24,7 +24,7 @@ class MongoSettings(BaseConnection, metaclass=SettingsMeta):
     host: Optional[str] = field(default=os.environ.get("DC_HOST", "localhost"))
     port: Optional[str] = field(default=os.environ.get("DC_PORT", "27017"))
 
-    def connect(self, connection_string: Optional[str] = None) -> AgnosticClient:
+    async def connect(self, connection_string: Optional[str] = None) -> AgnosticClient:
         """
         connect to the database that is defined by the settings.
         """
