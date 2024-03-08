@@ -2,7 +2,7 @@ from typing import List
 
 from ._abstract import AbstractResearcher, DataSource
 from .researchers import ConcreteResearcher
-from .sources import CosmosDataSource, SQLDataSource, DatabricksDataSource, BlobDataSource
+from .sources import CosmosDataSource, SQLDataSource, DatabricksDataSource
 
 
 def client_code(data_sources: List[DataSource], researcher: AbstractResearcher) -> None:
@@ -13,7 +13,7 @@ def client_code(data_sources: List[DataSource], researcher: AbstractResearcher) 
 
 
 def main():
-    components = [CosmosDataSource(), SQLDataSource(), DatabricksDataSource(), BlobDataSource()]
+    components = [CosmosDataSource(), SQLDataSource(), DatabricksDataSource()]
 
     print("The client code works with all visitors via the base Visitor interface:")
     visitor1 = ConcreteResearcher()

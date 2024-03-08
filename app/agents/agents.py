@@ -8,9 +8,10 @@ import tiktoken
 import semantic_kernel as sk
 from semantic_kernel.kernel import KernelFunction
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+from semantic_kernel.memory.memory_store_base import MemoryStoreBase
 
 from app.schemas.agents import ChatSchema
-from app.tools.memories import CosmosAbstractMemory
+from app.tools.memory._abstract import CosmosAbstractMemory
 from app.tools.embeddings import GPTEmbeddingGenerator
 
 
@@ -115,7 +116,7 @@ class Agent(ABC):
 
 class MemoryAgent(Agent):
 
-    def _chat_history(self, memory: CosmosAbstractMemory) -> None:
+    def _long_term_memory(self, memory: CosmosAbstractMemory) -> None:
         """
         Adds a AI service to the kernel.
         It could be a text completion service, text embedding service or a chat service.
@@ -126,4 +127,23 @@ class MemoryAgent(Agent):
         Returns:
             None
         """
-        self.kernel.use_memory(memory, embeddings_generator=GPTEmbeddingGenerator())
+        self.kernel.use_memory(
+            memory,
+            embeddings_generator=GPTEmbeddingGenerator()
+        )
+
+    def _short_term_memory(self, memory: MemoryStoreBase) -> None:
+        """
+        Adds a AI service to the kernel.
+        It could be a text completion service, text embedding service or a chat service.
+
+        Args:
+            input (str): Name of the deployment to work with
+        
+        Returns:
+            None
+        """
+        self.kernel.use_memory(
+            memory,
+            embeddings_generator=GPTEmbeddingGenerator()
+        )

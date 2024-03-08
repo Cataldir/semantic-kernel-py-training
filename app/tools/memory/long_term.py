@@ -2,90 +2,21 @@ from __future__ import annotations
 
 import uuid
 import asyncio
-from abc import abstractmethod
 from typing import Any, List, Tuple, Dict
 
 import numpy as np
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics.pairwise import cosine_similarity
 
-from motor.core import AgnosticDatabase
 from pymongo.results import DeleteResult, UpdateResult, InsertOneResult
-from semantic_kernel.memory.memory_store_base import MemoryStoreBase
 from semantic_kernel.memory.memory_record import MemoryRecord
 import tiktoken
 
-from app.settings import MongoSettings
-
-
-class CosmosAbstractMemory(MemoryStoreBase):
-
-    @abstractmethod
-    async def create(self, dataclass_instance: Dict[str, Any]):
-        """
-        _summary_
-
-        Args:
-            dataclass_instance (DataclassProtocol): _description_
-
-        Returns:
-            _type_: _description_
-        """
-
-    @abstractmethod
-    async def read(self, collection: str, document_id: uuid.UUID):
-        """
-        _summary_
-
-        Args:
-            collection (str): _description_
-            document_id (uuid.UUID): _description_
-
-        Returns:
-            _type_: _description_
-        """
-
-    @abstractmethod
-    async def update(self, document_id: uuid.UUID, dataclass_instance: Dict[str, Any]):
-        """
-        _summary_
-
-        Args:
-            document_id (uuid.UUID): _description_
-            dataclass_instance (DataclassProtocol): _description_
-
-        Returns:
-            _type_: _description_
-        """
-
-    @abstractmethod
-    async def delete(self, collection: str, document_id: uuid.UUID):
-        """
-        _summary_
-
-        Args:
-            collection (str): _description_
-            document_id (uuid.UUID): _description_
-
-        Returns:
-            _type_: _description_
-        """
+from ._abstract import CosmosAbstractMemory
+from .utils import apply_gaussian_mixture_similarity
 
 
 class CosmosMongoMemory(CosmosAbstractMemory):
-
-    def __init__(self, database: str, *args) -> None:
-        settings = MongoSettings(*args)
-        self.database: AgnosticDatabase = settings.database(database)
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        await self.close()
-
-    async def close(self):
-        """Async close connection, invoked by MemoryStoreBase.__aexit__()"""
 
     async def create(self, dataclass_instance: Dict[str, Any]) -> Any:
         document: dict[str, Any] = dataclass_instance
@@ -319,12 +250,7 @@ class CosmosMongoMemory(CosmosAbstractMemory):
         """
         documents = await self.database[collection_name].find({}).to_list(length=limit)
         embeddings = np.array([doc['embedding'] + embedding for doc in documents])
-        n_components = np.arange(1, 21)
-        bics = np.array([GaussianMixture(n).fit(embeddings).bic(embeddings) for n in n_components])
-        optimal_n_components = n_components[np.argmin(bics)]
-        gmm = GaussianMixture(n_components=optimal_n_components)
-        gmm.fit(embeddings)
-        clusters = gmm.predict(embeddings)
+        clusters = apply_gaussian_mixture_similarity(embeddings)
         embeddings_clusters = {}
         for cluster, document in zip(clusters, documents):
             document['cluster'] = cluster

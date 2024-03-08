@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 import logging
 from typing import Type, Optional
 
@@ -41,7 +40,7 @@ class SimpleRAG(MemoryAgent):
             completion(**schema.model_dump())
         )
         if memory:
-            self._chat_history(memory)
+            self._short_term_memory(memory)
 
     @evaluate_performance
     async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
@@ -62,44 +61,16 @@ class SimpleRAG(MemoryAgent):
         Your answer should be structured in topics, based on the content of the chat history and the presaved terms of the research.\n
         Your answer should have at least 1000 words.\n
         \n------------------------------\n
-        Consider the following chat history:\n
+        Consider the following related information about the topic:\n
         {{$chat_history}}
-        \n------------------------------\n
-        Consider the following presaved researched documents:\n
-        {{$RESEARCH_TOPICS}}
         \n------------------------------\n
         Provide a summary to a research based on the following question:\n
         {{$input}}
         """
-    
-        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10)
-        self.context['RESEARCH_TOPICS'] = await self.augmented_retrieve(prompt)
+
+        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10) if self.kernel.memory else None
         self.context['input'] = prompt
         return self.kernel.create_semantic_function(prompt_template, **kwargs)
-
-    async def augmented_retrieve(self, prompt: str) -> str:
-        """
-        Performs an augmented retrieval of research documents based on the provided prompt.
-
-        Args:
-            prompt (str): The prompt to use for the retrieval.
-
-        Returns:
-            str: Aggregated content of the top relevant research documents.
-        """
-        schema = SearchEngineSchema()
-        search_engine = SearchClient(
-            endpoint=schema.endpoint,
-            index_name=schema.index_name,
-            credential=AzureKeyCredential(schema.search_key)
-        )
-        research_docs = ''
-        async with search_engine:
-            results = await search_engine.search(search_text=prompt, top=10)
-            async for result in results:
-                if result.get('@search.score', 0) > 20:
-                    research_docs += result['content'] + '\n'
-        return research_docs
 
 
 class OneShotRAG(MemoryAgent):
@@ -124,7 +95,7 @@ class OneShotRAG(MemoryAgent):
             completion(**schema.model_dump())
         )
         if memory:
-            self._chat_history(memory)
+            self._short_term_memory(memory)
 
     @evaluate_performance
     async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
@@ -188,38 +159,92 @@ class OneShotRAG(MemoryAgent):
         The Transformer architecture has undeniably altered the landscape of NLP and continues to be the backbone of the most advanced models in the field. Its core concepts of self-attention and the encoder-decoder framework have paved the way for more efficient, accurate, and context-aware models. The subsequent developments, including BERT and GPT, have showcased the architecture's versatility and power, making it a cornerstone of modern NLP research and applications. As the field advances, we can expect the Transformer to evolve further, driving the next generation of AI breakthroughs.
         "
         \n------------------------------\n
-        Consider the following presaved researched documents:\n
-        {{$RESEARCH_TOPICS}}
+        Consider the following related information about the topic:\n
+        {{$chat_history}}
         \n------------------------------\n
         Provide a summary to a research based on the following question:\n
         {{$input}}
         """
-    
-        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10)
-        self.context['RESEARCH_TOPICS'] = await self.augmented_retrieve(prompt)
+
+        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10) if self.kernel.memory else None
         self.context['input'] = prompt
         return self.kernel.create_semantic_function(prompt_template, **kwargs)
 
-    async def augmented_retrieve(self, prompt: str) -> str:
+
+class FewShotRAG(MemoryAgent):
+
+    def _config_service(
+        self,
+        chat_name: str,
+        completion: Type[AzureChatCompletion] = AzureChatCompletion,
+        schema: ChatSchema = ChatSchema(),
+        memory: Optional[CosmosMongoMemory] = None
+    ) -> None:
         """
-        Performs an augmented retrieval of research documents based on the provided prompt.
+        Configures and adds a chat service to the kernel.
 
         Args:
-            prompt (str): The prompt to use for the retrieval.
+            chat_name (str): Name of the chat service to configure.
+            *args: Variable length argument list for the chat service.
+            **kwargs: Arbitrary keyword arguments for the chat service.
+        """
+        self.kernel.add_chat_service(
+            chat_name,
+            completion(**schema.model_dump())
+        )
+        if memory:
+            self._short_term_memory(memory)
+
+    @evaluate_performance
+    async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
+        """
+        Creates and returns a semantic function based on the given prompt and tool mappings.
+
+        Args:
+            prompt (str): The prompt to use for creating the semantic function.
+            **kwargs: Arbitrary keyword arguments for the semantic function.
 
         Returns:
-            str: Aggregated content of the top relevant research documents.
+            KernelFunctionBase: The created semantic function.
         """
-        schema = SearchEngineSchema()
-        search_engine = SearchClient(
-            endpoint=schema.endpoint,
-            index_name=schema.index_name,
-            credential=AzureKeyCredential(schema.search_key)
-        )
-        research_docs = ''
-        async with search_engine:
-            results = await search_engine.search(search_text=prompt, top=10)
-            async for result in results:
-                if result.get('@search.score', 0) > 20:
-                    research_docs += result['content'] + '\n'
-        return research_docs
+
+        prompt_template = """
+        You are a school assistant.\n
+        You will give support to students of primary school, helping them with their homework.\n
+        Your answer should be logically structured, providing the steps for implementing the solution of the stated problem.\n
+        Your answer should use at most 200 words.\n
+        \n------------------------------\n
+        Use the following examples to improve your answer:\n
+        *****************\n
+        QUESTION:
+        What is the 'sum' operation?\n
+        ANSWER:
+        *****************\n
+        QUESTION:
+        What is the 'product' operation?\n
+        ANSWER:
+        *****************\n
+        QUESTION:
+        What is the 'division' operation?\n
+        ANSWER:
+        *****************\n
+        QUESTION:
+        What is the 'subtraction' operation?\n
+        ANSWER:
+        *****************\n
+        QUESTION:
+        what is the order that I should use to solve mathematical operations?\n
+        ANSWER:
+        *****************\n
+        "
+        \n------------------------------\n
+        Consider the following related information about the topic:\n
+        {{$chat_history}}
+        \n------------------------------\n
+        Provide a summary to a research based on the following question:\n
+        {{$input}}
+        """
+
+        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10) if self.kernel.memory else None
+        self.context['input'] = prompt
+        return self.kernel.create_semantic_function(prompt_template, **kwargs)

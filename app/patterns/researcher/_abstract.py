@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 from pydantic import BaseModel
 
+from semantic_kernel.kernel import KernelFunction
+
 from app.agents import Agent
 
 
@@ -36,9 +38,9 @@ class AbstractResearcher(Agent):
     The Researcher interface extends the agent behaviour to add the multiple retrieval sources.
     """
     @abstractmethod
-    def synthesize_information(self) -> str:
+    def synthesize_information(self, queried_information: str, **kwargs) -> KernelFunction:
         pass
 
     @abstractmethod
-    def visit_data_source(self, source: DataSource) -> None:
+    def visit_data_source(self, source: DataSource, query: str, *args, **kwargs) -> None:
         pass
