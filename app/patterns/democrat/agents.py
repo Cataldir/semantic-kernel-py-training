@@ -16,18 +16,16 @@ def multiplexor_selection(prompt: str, kernel: Kernel, **kwargs):
         Context: If the question asks about a know risk with proper mitigator, you should select the agent that has the best knowledge about the risk and mitigator.\n
         \n------------------------------\n
         In your answer, you will take the User`s prompt and create a Python Dictionary that is composed of the following:\n
-        [
-            {
-                'agent': 'agent_name',
-                'agent_type: 'BusinessAgent',
-                'prompt': USER Prompt contextualized to the agent speciality,
-            },
-            {
-                'agent': 'agent_name',
-                'agent_type: 'RisksAgent',
-                'prompt': USER Prompt contextualized to the agent speciality,
-            }
-        ]
+        [{
+            'agent': 'agent_name',
+            'agent_type: 'BusinessAgent',
+            'prompt': USER Prompt contextualized to the agent speciality,
+        },
+        {
+            'agent': 'agent_name',
+            'agent_type: 'RisksAgent',
+            'prompt': USER Prompt contextualized to the agent speciality,
+        }]
         \n------------------------------\n
         Your answer should contain only the list of dictionaries that you created.
         \n------------------------------\n

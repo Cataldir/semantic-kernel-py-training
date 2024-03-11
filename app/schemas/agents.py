@@ -24,6 +24,11 @@ class TextSchema(BaseModel):
     endpoint: str = os.getenv('AZURE_OPENAI_THIRD_ENDPOINT', '')
 
 
+class VectorSchema(BaseModel):
+    engine_url: str = os.getenv('AZURE_OPENAI_THIRD_DEPLOYMENT_NAME', '')
+    api_key: str = os.getenv('AZURE_OPENAI_THIRD_API_KEY', '')
+
+
 class SourceEngineSchema(BaseModel):
     origin: Dict[str, Any]
     destination: Dict[str, Any]

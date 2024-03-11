@@ -5,16 +5,15 @@ from abc import abstractmethod
 from typing import Any, Dict
 
 from motor.core import AgnosticDatabase
-from semantic_kernel.memory.memory_store_base import MemoryStoreBase
+from semantic_kernel.memory.semantic_text_memory import SemanticTextMemoryBase
 
 from app.settings import MongoSettings
 
 
-class CosmosAbstractMemory(MemoryStoreBase):
+class CosmosAbstractMemory(SemanticTextMemoryBase):
 
-    def __init__(self, database: str, *args) -> None:
-        settings = MongoSettings(*args)
-        self.database: AgnosticDatabase = settings.database(database)
+    settings: MongoSettings
+    database: AgnosticDatabase
 
     async def __aenter__(self):
         return self

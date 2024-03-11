@@ -4,25 +4,22 @@ import logging
 from typing import Type, Optional
 
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+from semantic_kernel.prompt_template.prompt_template_config import PromptTemplateConfig
 from semantic_kernel.kernel import KernelFunction
 
-from azure.core.credentials import AzureKeyCredential
-from azure.search.documents.aio import SearchClient
-
 from app.agents.agents import MemoryAgent
-from app.schemas.agents import ChatSchema, SearchEngineSchema
-from app.tools.memories import CosmosMongoMemory
+from app.schemas.agents import ChatSchema
+from app.tools.memory import CosmosMongoMemory
 from app.utils.tracker import evaluate_performance
 
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-class SimpleRAG(MemoryAgent):
+class RAGAgent(MemoryAgent):
 
     def _config_service(
         self,
-        chat_name: str,
         completion: Type[AzureChatCompletion] = AzureChatCompletion,
         schema: ChatSchema = ChatSchema(),
         memory: Optional[CosmosMongoMemory] = None
@@ -35,15 +32,15 @@ class SimpleRAG(MemoryAgent):
             *args: Variable length argument list for the chat service.
             **kwargs: Arbitrary keyword arguments for the chat service.
         """
-        self.kernel.add_chat_service(
-            chat_name,
-            completion(**schema.model_dump())
-        )
+        self.kernel.add_service(completion(**schema.model_dump()))
         if memory:
             self._short_term_memory(memory)
 
+
+class SimpleRAG(RAGAgent):
+
     @evaluate_performance
-    async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
+    async def prompt(self, **kwargs) -> KernelFunction:
         """
         Creates and returns a semantic function based on the given prompt and tool mappings.
 
@@ -68,34 +65,16 @@ class SimpleRAG(MemoryAgent):
         {{$input}}
         """
 
-        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10) if self.kernel.memory else None
-        self.context['input'] = prompt
-        return self.kernel.create_semantic_function(prompt_template, **kwargs)
-
-
-class OneShotRAG(MemoryAgent):
-
-    def _config_service(
-        self,
-        chat_name: str,
-        completion: Type[AzureChatCompletion] = AzureChatCompletion,
-        schema: ChatSchema = ChatSchema(),
-        memory: Optional[CosmosMongoMemory] = None
-    ) -> None:
-        """
-        Configures and adds a chat service to the kernel.
-
-        Args:
-            chat_name (str): Name of the chat service to configure.
-            *args: Variable length argument list for the chat service.
-            **kwargs: Arbitrary keyword arguments for the chat service.
-        """
-        self.kernel.add_chat_service(
-            chat_name,
-            completion(**schema.model_dump())
+        prompt_template_config = PromptTemplateConfig(template=prompt_template, **kwargs)
+        return self.kernel.create_function_from_prompt(
+            function_name="main_prompt",
+            description="Prompt performed by the single RAG agent.",
+            prompt_template_config=prompt_template_config,
+            **kwargs
         )
-        if memory:
-            self._short_term_memory(memory)
+
+
+class OneShotRAG(RAGAgent):
 
     @evaluate_performance
     async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
@@ -166,34 +145,16 @@ class OneShotRAG(MemoryAgent):
         {{$input}}
         """
 
-        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10) if self.kernel.memory else None
-        self.context['input'] = prompt
-        return self.kernel.create_semantic_function(prompt_template, **kwargs)
-
-
-class FewShotRAG(MemoryAgent):
-
-    def _config_service(
-        self,
-        chat_name: str,
-        completion: Type[AzureChatCompletion] = AzureChatCompletion,
-        schema: ChatSchema = ChatSchema(),
-        memory: Optional[CosmosMongoMemory] = None
-    ) -> None:
-        """
-        Configures and adds a chat service to the kernel.
-
-        Args:
-            chat_name (str): Name of the chat service to configure.
-            *args: Variable length argument list for the chat service.
-            **kwargs: Arbitrary keyword arguments for the chat service.
-        """
-        self.kernel.add_chat_service(
-            chat_name,
-            completion(**schema.model_dump())
+        prompt_template_config = PromptTemplateConfig(template=prompt_template, **kwargs)
+        return self.kernel.create_function_from_prompt(
+            function_name="main_prompt",
+            description="Prompt performed by the one-shot RAG agent.",
+            prompt_template_config=prompt_template_config,
+            **kwargs
         )
-        if memory:
-            self._short_term_memory(memory)
+
+
+class FewShotRAG(RAGAgent):
 
     @evaluate_performance
     async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
@@ -245,6 +206,10 @@ class FewShotRAG(MemoryAgent):
         {{$input}}
         """
 
-        self.context['chat_history'] = await self.kernel.memory.search('ragMemory', prompt, 10) if self.kernel.memory else None
-        self.context['input'] = prompt
-        return self.kernel.create_semantic_function(prompt_template, **kwargs)
+        prompt_template_config = PromptTemplateConfig(template=prompt_template, **kwargs)
+        return self.kernel.create_function_from_prompt(
+            function_name="main_prompt",
+            description="Prompt performed by the few-shot RAG agent.",
+            prompt_template_config=prompt_template_config,
+            **kwargs
+        )

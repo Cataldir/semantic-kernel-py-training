@@ -1,5 +1,5 @@
 from __future__ import annotations
-from multiprocessing import connection
+from typing import Optional
 
 import uuid
 from pydantic import BaseModel
@@ -10,11 +10,4 @@ class ChatEndpoint(BaseModel):
     _id: uuid.UUID = uuid.uuid4()
     chat_name: str = 'researcher'
     max_tokens: int = 4096
-
-
-class ChatEndpointWithMemory(BaseModel):
-    prompt: str
-    connection_string: str
-    _id: uuid.UUID = uuid.uuid4()
-    chat_name: str = 'researcher'
-    max_tokens: int = 4096
+    connection_string: Optional[str] = None

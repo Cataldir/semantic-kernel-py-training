@@ -3,16 +3,16 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Coroutine, Any, Optional, List, Type
+from semantic_kernel.memory.semantic_text_memory import SemanticTextMemory
 
 import tiktoken
 import semantic_kernel as sk
 from semantic_kernel.kernel import KernelFunction
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
-from semantic_kernel.memory.memory_store_base import MemoryStoreBase
+from semantic_kernel.core_plugins.text_memory_plugin import TextMemoryPlugin
 
 from app.schemas.agents import ChatSchema
 from app.tools.memory._abstract import CosmosAbstractMemory
-from app.tools.embeddings import GPTEmbeddingGenerator
 
 
 ASYNC_CALLABLE = Coroutine[Any, Callable[..., str], str]
@@ -35,7 +35,6 @@ class Agent(ABC):
 
         self._id: uuid.UUID = chat_id or uuid.uuid4()
         self.kernel = sk.Kernel(*args, **kwargs)
-        self.context = self.kernel.create_new_context()
         self.response: Dict[str, Any] = {'chat_id': str(self._id)}
 
     async def __call__(
@@ -60,9 +59,9 @@ class Agent(ABC):
 
         self._config_service(chat_name, *args)
         semantic_function: KernelFunction = await self.prompt(prompt, **kwargs)
-        chat_answer = await semantic_function(context=self.context)
-        self.response['completion_tokens'] = len(self._encode(chat_answer.result))
-        self.response.update({'response': chat_answer.result})
+        chat_answer = await semantic_function.invoke(self.kernel)
+        self.response['completion_tokens'] = len(self._encode(str(chat_answer)))
+        self.response.update({'response': str(chat_answer)})
         return self.response
 
     @abstractmethod
@@ -127,12 +126,12 @@ class MemoryAgent(Agent):
         Returns:
             None
         """
-        self.kernel.use_memory(
-            memory,
-            embeddings_generator=GPTEmbeddingGenerator()
+        self.kernel.import_plugin_from_object(
+            TextMemoryPlugin(memory),
+            "LongTermMemory"
         )
 
-    def _short_term_memory(self, memory: MemoryStoreBase) -> None:
+    def _short_term_memory(self, memory: SemanticTextMemory) -> None:
         """
         Adds a AI service to the kernel.
         It could be a text completion service, text embedding service or a chat service.
@@ -143,7 +142,7 @@ class MemoryAgent(Agent):
         Returns:
             None
         """
-        self.kernel.use_memory(
-            memory,
-            embeddings_generator=GPTEmbeddingGenerator()
+        self.kernel.import_plugin_from_object(
+            TextMemoryPlugin(memory),
+            "ShortTermMemory"
         )

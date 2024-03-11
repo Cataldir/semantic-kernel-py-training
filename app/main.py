@@ -7,9 +7,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.schemas import RESPONSES, BodyMessage, ChatEndpoint, ChatEndpointWithMemory
-from app.patterns.simple.simple import SimpleRAG
-from app.tools.memories import CosmosMongoMemory
+from app.schemas import RESPONSES, BodyMessage, ChatEndpoint
+from app.patterns.simple import SimpleRAG, OneShotRAG, FewShotRAG
 from app.bg_tasks import load_data
 
 
@@ -72,7 +71,7 @@ async def validation_exception_handler(
 
 
 @app.post("/simple-rag/")
-async def chat_with_simple_rag(
+async def simple_rag_chat(
     prompt: ChatEndpoint,
     bg_tasks: BackgroundTasks
 ) -> JSONResponse:
@@ -92,18 +91,37 @@ async def chat_with_simple_rag(
     )
 
 
-@app.post("/simple-rag-with-memory/")
-async def chat_with_simple_rag_with_memory(
-    prompt: ChatEndpointWithMemory,
+@app.post("/one-show-rag/")
+async def one_shot_rag_chat(
+    prompt: ChatEndpoint,
     bg_tasks: BackgroundTasks
 ) -> JSONResponse:
     """
     load_data loads the data into the Context
     """
     print(prompt.connection_string)
-    memory = CosmosMongoMemory('ragMemory', prompt.connection_string)
-    agent = SimpleRAG(chat_id=prompt._id)
-    agent._chat_history(memory)
+    agent = OneShotRAG(chat_id=prompt._id)
+    response = await agent(
+        chat_name=prompt.chat_name,
+        prompt=prompt.prompt,
+        max_tokens=prompt.max_tokens
+    )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder(response)
+    )
+
+
+@app.post("/few-show-rag/")
+async def few_shot_rag_chat(
+    prompt: ChatEndpoint,
+    bg_tasks: BackgroundTasks
+) -> JSONResponse:
+    """
+    load_data loads the data into the Context
+    """
+    print(prompt.connection_string)
+    agent = FewShotRAG(chat_id=prompt._id)
     response = await agent(
         chat_name=prompt.chat_name,
         prompt=prompt.prompt,
