@@ -38,3 +38,13 @@ class SearchEngineSchema(BaseModel):
     endpoint: str = os.environ.get('AZURE_AI_SEARCH_SERVICE', '')
     index_name: str = os.environ.get('AZURE_AI_INDEX', '')
     search_key: str = os.environ.get('AZURE_AI_SEARCH_KEY', '')
+
+
+class AzureSearchMemorySchema(BaseModel):
+    id: str = "Id"
+    text: str = "Text"
+    embedding: str = "Embedding"
+    source: str = "ExternalSourceName"
+    description: str = "Description"
+    metadata: str = "AdditionalMetadata"
+    is_reference: str = "IsReference"

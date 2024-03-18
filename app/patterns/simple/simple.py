@@ -1,46 +1,23 @@
 from __future__ import annotations
 
 import logging
-from typing import Type, Optional
+from typing import Type
+from string import Template
 
-from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
-from semantic_kernel.prompt_template.prompt_template_config import PromptTemplateConfig
+from semantic_kernel.prompt_template.prompt_template_config import PromptTemplateConfig, PromptExecutionSettings
 from semantic_kernel.kernel import KernelFunction
 
 from app.agents.agents import MemoryAgent
-from app.schemas.agents import ChatSchema
-from app.tools.memory import CosmosMongoMemory
 from app.utils.tracker import evaluate_performance
 
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-class RAGAgent(MemoryAgent):
-
-    def _config_service(
-        self,
-        completion: Type[AzureChatCompletion] = AzureChatCompletion,
-        schema: ChatSchema = ChatSchema(),
-        memory: Optional[CosmosMongoMemory] = None
-    ) -> None:
-        """
-        Configures and adds a chat service to the kernel.
-
-        Args:
-            chat_name (str): Name of the chat service to configure.
-            *args: Variable length argument list for the chat service.
-            **kwargs: Arbitrary keyword arguments for the chat service.
-        """
-        self.kernel.add_service(completion(**schema.model_dump()))
-        if memory:
-            self._short_term_memory(memory)
-
-
-class SimpleRAG(RAGAgent):
+class SimpleRAG(MemoryAgent):
 
     @evaluate_performance
-    async def prompt(self, **kwargs) -> KernelFunction:
+    async def prompt(self, *args, **kwargs) -> KernelFunction:
         """
         Creates and returns a semantic function based on the given prompt and tool mappings.
 
@@ -56,28 +33,35 @@ class SimpleRAG(RAGAgent):
         You are a research assistant.\n
         You will write a summary of the research, with a brief introduction and a review of the topic.\n
         Your answer should be structured in topics, based on the content of the chat history and the presaved terms of the research.\n
-        Your answer should have at least 1000 words.\n
+        Your answer should have at least 1000 tokens.\n
         \n------------------------------\n
         Consider the following related information about the topic:\n
-        {{$chat_history}}
+        {{recall '$query' collection='claro-video-search'}}
         \n------------------------------\n
         Provide a summary to a research based on the following question:\n
-        {{$input}}
-        """
-
-        prompt_template_config = PromptTemplateConfig(template=prompt_template, **kwargs)
+        {{$request}}
+        """.strip()
+        prompt_template = Template(prompt_template).safe_substitute(query=kwargs.get('query', ''))
+        service_id = f"chat-{str(self._id)}"
+        prompt_execution_settings = self.kernel.get_service(service_id).get_prompt_execution_settings_class()
+        prompt_template_config  = PromptTemplateConfig(
+            template=prompt_template,
+            execution_settings={
+                'service_id': prompt_execution_settings(service_id=service_id, max_tokens=kwargs.get('max_tokens', 8192))
+            },
+        )
         return self.kernel.create_function_from_prompt(
             function_name="main_prompt",
+            plugin_name="SimpleRAG",
             description="Prompt performed by the single RAG agent.",
-            prompt_template_config=prompt_template_config,
-            **kwargs
+            prompt_template_config=prompt_template_config
         )
 
 
-class OneShotRAG(RAGAgent):
+class OneShotRAG(MemoryAgent):
 
     @evaluate_performance
-    async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
+    async def prompt(self, service_id: str, *args, **kwargs) -> KernelFunction:
         """
         Creates and returns a semantic function based on the given prompt and tool mappings.
 
@@ -99,13 +83,13 @@ class OneShotRAG(RAGAgent):
         QUESTION:
         Perform an analysis of the transformer architecture
         ANSWER:
-        # Introduction to Transformer Architecture
+        # Introduction to Transformer Architecture\n
         In recent years, the field of natural language processing (NLP) has been revolutionized by the introduction of the Transformer architecture. This breakthrough was first introduced in the seminal paper "Attention Is All You Need" by Vaswani et al. in 2017. The Transformer model eschews the previously dominant sequence-to-sequence architectures that relied heavily on recurrent neural networks (RNNs) and convolutional neural networks (CNNs), and instead uses a self-attention mechanism to process sequential data.
         The shift to Transformers has led to the development of various state-of-the-art models that have set new standards in a wide array of NLP tasks, including but not limited to language understanding, translation, question-answering, and summarization. This summary will delve into the core concepts of the Transformer architecture, its advantages, applications, and the subsequent developments it has spurred in the field of artificial intelligence.
-        # Core Concepts of Transformer Architecture
-        ## Self-Attention Mechanism
+        \n\n# Core Concepts of Transformer Architecture\n
+        ## Self-Attention Mechanism\n
         The linchpin of the Transformer architecture is the self-attention mechanism. This allows the model to weigh the significance of each part of the input data differently, enabling it to capture context more effectively. Self-attention computes a score for each word in a sentence in relation to every other word, which determines how much focus should be placed on other parts of the input when encoding a particular word.
-        ## Positional Encoding
+        \n## Positional Encoding\n
         Since Transformers do not inherently process sequential data as RNNs do, they require positional encodings to maintain the order of words. Positional encodings are added to the input embeddings to provide the model with information about the position of the words in the sequence.
         ## Multi-Head Attention
         Transformers utilize multi-head attention to extend the self-attention mechanism across multiple 'heads', allowing the model to capture different types of relationships in the data across different representation subspaces at different positions.
@@ -142,10 +126,15 @@ class OneShotRAG(RAGAgent):
         {{$chat_history}}
         \n------------------------------\n
         Provide a summary to a research based on the following question:\n
-        {{$input}}
+        {{$request}}
         """
-
-        prompt_template_config = PromptTemplateConfig(template=prompt_template, **kwargs)
+        prompt_execution_settings: Type[PromptExecutionSettings] = self.kernel.get_service(service_id).get_prompt_execution_settings_class()
+        prompt_template_config  = PromptTemplateConfig(
+            template=prompt_template,
+            execution_settings={
+                'service_id': prompt_execution_settings(service_id=service_id)
+            },
+        )
         return self.kernel.create_function_from_prompt(
             function_name="main_prompt",
             description="Prompt performed by the one-shot RAG agent.",
@@ -154,10 +143,10 @@ class OneShotRAG(RAGAgent):
         )
 
 
-class FewShotRAG(RAGAgent):
+class FewShotRAG(MemoryAgent):
 
     @evaluate_performance
-    async def prompt(self, prompt: str, **kwargs) -> KernelFunction:
+    async def prompt(self, service_id: str, *args, **kwargs) -> KernelFunction:
         """
         Creates and returns a semantic function based on the given prompt and tool mappings.
 
@@ -203,10 +192,15 @@ class FewShotRAG(RAGAgent):
         {{$chat_history}}
         \n------------------------------\n
         Provide a summary to a research based on the following question:\n
-        {{$input}}
+        {{$request}}
         """
-
-        prompt_template_config = PromptTemplateConfig(template=prompt_template, **kwargs)
+        prompt_execution_settings: Type[PromptExecutionSettings] = self.kernel.get_service(service_id).get_prompt_execution_settings_class()
+        prompt_template_config  = PromptTemplateConfig(
+            template=prompt_template,
+            execution_settings={
+                'service_id': prompt_execution_settings(service_id=service_id)
+            },
+        )
         return self.kernel.create_function_from_prompt(
             function_name="main_prompt",
             description="Prompt performed by the few-shot RAG agent.",

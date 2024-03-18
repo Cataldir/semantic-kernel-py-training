@@ -30,7 +30,7 @@ def multiplexor_selection(prompt: str, kernel: Kernel, **kwargs):
         Your answer should contain only the list of dictionaries that you created.
         \n------------------------------\n
         This is the user question:\n
-        {{$input}}
+        {{$request}}
         """
     context = kernel.create_new_context()
     context['input'] = prompt
@@ -73,7 +73,7 @@ class BusinessAgent(MemoryAgent):
         Your answer should contain only the list of dictionaries that you created.
         \n------------------------------\n
         This is the user question:\n
-        {{$input}}
+        {{$request}}
         """
         context = kernel.create_new_context()
         context['input'] = prompt

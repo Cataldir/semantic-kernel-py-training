@@ -1,14 +1,20 @@
 """
 The configuration for the web api.
 """
+from msilib import schema
+from typing import List
 from fastapi import FastAPI, Request, status, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.schemas import RESPONSES, BodyMessage, ChatEndpoint
+from semantic_kernel.connectors.ai.open_ai import AzureTextEmbedding, AzureChatCompletion
+
+from app.schemas import RESPONSES, BodyMessage, ChatEndpoint, ChatSchema, TextSchema
+from app.settings.types import COMPLETION_TYPE
 from app.patterns.simple import SimpleRAG, OneShotRAG, FewShotRAG
+from app.tools.memory.short_term import AISearchMemory
 from app.bg_tasks import load_data
 
 
@@ -79,10 +85,27 @@ async def simple_rag_chat(
     load_data loads the data into the Context
     """
     agent = SimpleRAG(chat_id=prompt._id)
+    chat_completion = prompt.chat_connections or ChatSchema()
+    chat_completion = chat_completion.model_dump()
+
+    text_completion = prompt.text_connections or TextSchema()
+    text_completion = text_completion.model_dump()
+
+    search_schema = prompt.search_connections
+
+    chat_completion.update({'service_id': f"chat-{str(agent._id)}"})
+    text_completion.update({'service_id': f"embeddings-{str(agent._id)}"})
+
+    completions: List[COMPLETION_TYPE] = [AzureChatCompletion(**chat_completion), ]
+    embedding_gen = AzureTextEmbedding(**text_completion)
+    ai_memory = AISearchMemory(vector_size=1536, field_schema=search_schema)
+    config_kwargs = {"short_term_memory": ai_memory(gen_embeddings=embedding_gen)}
+
     response = await agent(
-        chat_name=prompt.chat_name,
+        completions=completions,
         prompt=prompt.prompt,
-        max_tokens=prompt.max_tokens
+        prompt_kwargs={"max_tokens": prompt.max_tokens, 'query': prompt.prompt},
+        config_kwargs=config_kwargs
     )
     bg_tasks.add_task(load_data, response)
     return JSONResponse(
@@ -91,7 +114,7 @@ async def simple_rag_chat(
     )
 
 
-@app.post("/one-show-rag/")
+@app.post("/one-shot-rag/")
 async def one_shot_rag_chat(
     prompt: ChatEndpoint,
     bg_tasks: BackgroundTasks
@@ -99,20 +122,31 @@ async def one_shot_rag_chat(
     """
     load_data loads the data into the Context
     """
-    print(prompt.connection_string)
     agent = OneShotRAG(chat_id=prompt._id)
+    chat_completion = prompt.chat_connections or ChatSchema()
+    chat_completion = chat_completion.model_dump()
+
+    text_completion = prompt.text_connections or TextSchema()
+    text_completion = text_completion.model_dump()
+
+    search_schema = prompt.search_connections.model_dump()
+
+    completions: List[COMPLETION_TYPE] = [AzureChatCompletion(**chat_completion), ]
+    if prompt.include_embeddings:
+        completions.append(AzureTextEmbedding(**text_completion))
     response = await agent(
-        chat_name=prompt.chat_name,
+        completions=completions,
         prompt=prompt.prompt,
-        max_tokens=prompt.max_tokens
+        prompt_kwargs={"max_tokens": prompt.max_tokens}
     )
+    bg_tasks.add_task(load_data, response)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=jsonable_encoder(response)
     )
 
 
-@app.post("/few-show-rag/")
+@app.post("/few-shot-rag/")
 async def few_shot_rag_chat(
     prompt: ChatEndpoint,
     bg_tasks: BackgroundTasks
@@ -120,13 +154,24 @@ async def few_shot_rag_chat(
     """
     load_data loads the data into the Context
     """
-    print(prompt.connection_string)
     agent = FewShotRAG(chat_id=prompt._id)
+    chat_completion = prompt.chat_connections or ChatSchema()
+    chat_completion = chat_completion.model_dump()
+
+    text_completion = prompt.text_connections or TextSchema()
+    text_completion = text_completion.model_dump()
+
+    search_schema = prompt.search_connections.model_dump()
+
+    completions: List[COMPLETION_TYPE] = [AzureChatCompletion(**chat_completion), ]
+    if prompt.include_embeddings:
+        completions.append(AzureTextEmbedding(**text_completion))
     response = await agent(
-        chat_name=prompt.chat_name,
+        completions=completions,
         prompt=prompt.prompt,
-        max_tokens=prompt.max_tokens
+        prompt_kwargs={"max_tokens": prompt.max_tokens}
     )
+    bg_tasks.add_task(load_data, response)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=jsonable_encoder(response)
@@ -142,10 +187,21 @@ async def chat_with_multiplexor_rag(
     load_data loads the data into the Context
     """
     agent = SimpleRAG(chat_id=prompt._id)
+    chat_completion = prompt.chat_connections or ChatSchema()
+    chat_completion = chat_completion.model_dump()
+
+    text_completion = prompt.text_connections or TextSchema()
+    text_completion = text_completion.model_dump()
+
+    search_schema = prompt.search_connections.model_dump()
+
+    completions: List[COMPLETION_TYPE] = [AzureChatCompletion(**chat_completion), ]
+    if prompt.include_embeddings:
+        completions.append(AzureTextEmbedding(**text_completion))
     response = await agent(
-        chat_name=prompt.chat_name,
+        completions=completions,
         prompt=prompt.prompt,
-        max_tokens=prompt.max_tokens
+        prompt_kwargs={"max_tokens": prompt.max_tokens}
     )
     bg_tasks.add_task(load_data, response)
     return JSONResponse(
@@ -163,10 +219,21 @@ async def chat_with_agent_swarm(
     load_data loads the data into the Context
     """
     agent = SimpleRAG(chat_id=prompt._id)
+    chat_completion = prompt.chat_connections or ChatSchema()
+    chat_completion = chat_completion.model_dump()
+
+    text_completion = prompt.text_connections or TextSchema()
+    text_completion = text_completion.model_dump()
+
+    search_schema = prompt.search_connections.model_dump()
+
+    completions: List[COMPLETION_TYPE] = [AzureChatCompletion(**chat_completion), ]
+    if prompt.include_embeddings:
+        completions.append(AzureTextEmbedding(**text_completion))
     response = await agent(
-        chat_name=prompt.chat_name,
+        completions=completions,
         prompt=prompt.prompt,
-        max_tokens=prompt.max_tokens
+        prompt_kwargs={"max_tokens": prompt.max_tokens}
     )
     bg_tasks.add_task(load_data, response)
     return JSONResponse(

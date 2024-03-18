@@ -37,6 +37,7 @@ class AbstractResearcher(Agent):
     """
     The Researcher interface extends the agent behaviour to add the multiple retrieval sources.
     """
+
     @abstractmethod
     def synthesize_information(self, queried_information: str, **kwargs) -> KernelFunction:
         pass

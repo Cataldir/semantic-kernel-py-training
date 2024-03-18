@@ -5,7 +5,6 @@ import asyncio
 from typing import Any, List, Tuple, Dict
 
 import numpy as np
-from sklearn.mixture import GaussianMixture
 from sklearn.metrics.pairwise import cosine_similarity
 
 from pymongo.results import DeleteResult, UpdateResult, InsertOneResult
@@ -13,7 +12,7 @@ from semantic_kernel.memory.memory_record import MemoryRecord
 import tiktoken
 
 from ._abstract import CosmosAbstractMemory
-from .utils import apply_gaussian_mixture_similarity
+from .utils.gmm import apply_gaussian_mixture_similarity
 
 
 class CosmosMongoMemory(CosmosAbstractMemory):

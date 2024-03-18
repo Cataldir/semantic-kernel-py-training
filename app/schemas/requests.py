@@ -3,6 +3,7 @@ from typing import Optional
 
 import uuid
 from pydantic import BaseModel
+from .agents import ChatSchema, TextSchema, AzureSearchMemorySchema
 
 
 class ChatEndpoint(BaseModel):
@@ -10,4 +11,7 @@ class ChatEndpoint(BaseModel):
     _id: uuid.UUID = uuid.uuid4()
     chat_name: str = 'researcher'
     max_tokens: int = 4096
-    connection_string: Optional[str] = None
+    search_connections: AzureSearchMemorySchema = AzureSearchMemorySchema()
+    include_embeddings: Optional[bool] = False
+    chat_connections: Optional[ChatSchema] = None
+    text_connections: Optional[TextSchema] = None

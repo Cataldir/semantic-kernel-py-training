@@ -29,3 +29,9 @@ From the perspective of Semantic Kernel orchestration, an AI agent is a modular 
 
 ## Tooling and Plugins
 
+
+
+## Found Errors
+
+- (0.9.0b1) At the file **semantic_kernel\services\ai_service_client_base.py**, the return type for the function "get_prompt_execution_settings_class" is misleading. It should return its type, while its returning its instance.
+- (0.9.0b1) At the file **semantic_kernel\services\ai_service_selector.py**, the method for retrieving information from the prompt config class is wrong, line 37. Instead of `kernel.get_service(service_id, type=(TextCompletionClientBase, ChatCompletionClientBase))`, it should be `kernel.get_service(getattr(settings, service_id, None), type=(TextCompletionClientBase, ChatCompletionClientBase))`.

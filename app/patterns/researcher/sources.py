@@ -16,8 +16,8 @@ class CosmosDataSource(DataSource):
     def provide_data(self, query: str, params: BaseModel) -> Dict[str, Any]:
         return {'data': "Data from Source A"}
 
-    def accept(self, researcher: AbstractResearcher) -> None:
-        researcher.visit_data_source(self)
+    def accept(self, researcher: AbstractResearcher, query: str) -> None:
+        researcher.visit_data_source(self, query)
 
 
 class SQLDataSource(DataSource):
@@ -29,8 +29,8 @@ class SQLDataSource(DataSource):
     def provide_data(self, query: str, params: BaseModel) -> Dict[str, Any]:
         return {'data': "Data from Source A"}
 
-    def accept(self, researcher: AbstractResearcher) -> None:
-        researcher.visit_data_source(self)
+    def accept(self, researcher: AbstractResearcher, query: str) -> None:
+        researcher.visit_data_source(self, query)
 
 
 class DatabricksDataSource(DataSource):
@@ -42,8 +42,8 @@ class DatabricksDataSource(DataSource):
     def provide_data(self, query: str, params: BaseModel) -> Dict[str, Any]:
         return {'data': "Data from Source A"}
 
-    def accept(self, researcher: AbstractResearcher) -> None:
-        researcher.visit_data_source(self)
+    def accept(self, researcher: AbstractResearcher, query: str) -> None:
+        researcher.visit_data_source(self, query)
 
 
 class BlobDataSource(DataSource):
@@ -55,5 +55,5 @@ class BlobDataSource(DataSource):
     def provide_data(self, query: str, params: BaseModel) -> Dict[str, Any]:
         return {'data': "Data from Source A"}
 
-    def accept(self, researcher: AbstractResearcher) -> None:
-        researcher.visit_data_source(self)
+    def accept(self, researcher: AbstractResearcher, query: str) -> None:
+        researcher.visit_data_source(self, query)

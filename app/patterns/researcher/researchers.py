@@ -59,7 +59,7 @@ class PersistedDataResearcher(AbstractResearcher):
         *****************\n
         \n------------------------------\n
         Provide a summary to a research based on the following question:\n
-        {{$input}}
+        {{$request}}
         """
         self.context['input'] = prompt
         return self.kernel.create_semantic_function(prompt_template, **kwargs)
