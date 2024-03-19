@@ -15,5 +15,5 @@ $command = "poetry config virtualenvs.in-project true"
 ExecuteCommand $command
 
 # Select Python 3.10 as the package version
-$command = "poetry env use python3.10"
+$command = "poetry env use python3.11"
 ExecuteCommand $command
